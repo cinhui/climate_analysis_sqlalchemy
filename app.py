@@ -43,7 +43,7 @@ def home():
 def precipitation():
     # Convert the query results to a Dictionary using date as the key and prcp as the value.
     # Return the JSON representation of your dictionary.
-    last_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()
+    # last_date = session.query(Measurement.date).order_by(Measurement.date.desc()).first()
     year_from_last_date = dt.date(2017, 8,23) - dt.timedelta(days=364)
 
     # Perform a query to retrieve the date and precipitation scores sorted by date
