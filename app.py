@@ -34,12 +34,12 @@ def home():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/start<br/>"
-        f"/api/v1.0/start/end"
+        f"/api/v1.0/<start><br/>"
+        f"/api/v1.0/<start>/<end>"
     )
 
 # Flask Routes
-@app.route("/api/v1.0/precipitation")
+@app.route("/api/v1.0/precipitation/")
 def precipitation():
     # Convert the query results to a Dictionary using date as the key and prcp as the value.
     # Return the JSON representation of your dictionary.
@@ -59,7 +59,7 @@ def precipitation():
 
     return jsonify(results_dict)
 
-@app.route("/api/v1.0/stations")
+@app.route("/api/v1.0/stations/")
 def stations():
     # Return a JSON list of stations from the dataset.
     results = session.query(Station.station, Station.name).all()
@@ -69,13 +69,20 @@ def stations():
         entry_dict["station"] = station
         entry_dict["name"] = name
         results_dict.append(entry_dict)
+    
     return jsonify(results_dict)
 
-@app.route("/api/v1.0/tobs")
+@app.route("/api/v1.0/tobs/")
 def tobs():
     # Query for the dates and temperature observations from a year from the last data point.
     # Return a JSON list of Temperature Observations (tobs) for the previous year.
-    year_from_last_date = dt.date(2017, 8,23) - dt.timedelta(days=364)
+
+    # Query for last data point
+    last_date = session.query(Measurement.date).\
+        order_by(Measurement.date.desc()).first()[0]
+
+    year_from_last_date = dt.datetime.strptime(last_date, "%Y-%m-%d") - dt.timedelta(days=365)
+#    year_from_last_date = dt.date(2017, 8,23) - dt.timedelta(days=365)
 
     # Perform a query to retrieve the date and precipitation scores sorted by date
     results = session.query(Measurement.date, Measurement.tobs).\
@@ -90,21 +97,47 @@ def tobs():
 
     return jsonify(results_dict)
 
-@app.route("/api/v1.0/<start>")
-def start():
+@app.route("/api/v1.0/<start>/")
+def tobs_start(start):
     # Return a JSON list of the minimum temperature, the average temperature, 
     # and the max temperature for a given start or start-end range.
     # When given the start only, calculate TMIN, TAVG, and TMAX for 
     # all dates greater than and equal to the start date.
-    return "start"
+    # start date is in format yyyy-mm-dd
+    results = session.query(Measurement.date, func.min(Measurement.tobs),func.avg(Measurement.tobs),func.max(Measurement.tobs)).\
+         filter(Measurement.date>=start).\
+         group_by(Measurement.date).all()
+    
+    results_dict = []
+    for  date, min_tobs, avg_tobs, max_tobs in results:
+        entry_dict = {}
+        entry_dict["date"] = date
+        entry_dict["min temperature"] = min_tobs
+        entry_dict["avg temperature"] = avg_tobs
+        entry_dict["max temperature"] = max_tobs
+        results_dict.append(entry_dict)
+    return jsonify(results_dict)
 
-@app.route("/api/v1.0/<start>/<end>")
-def start_end():
+@app.route("/api/v1.0/<start>/<end>/")
+def tobs_start_end(start,end):
     # Return a JSON list of the minimum temperature, the average temperature, 
     # and the max temperature for a given start or start-end range.
     # When given the start and the end date, calculate the TMIN, TAVG, and TMAX for 
     # dates between the start and end date inclusive.
-    return "start end"
+    # start and end dates are in format yyyy-mm-dd
+    results = session.query(Measurement.date,func.min(Measurement.tobs),func.avg(Measurement.tobs),func.max(Measurement.tobs)).\
+        filter(Measurement.date>=start, Measurement.date<=end).\
+        group_by(Measurement.date).all()
+    
+    results_dict = []
+    for  date, min_tobs, avg_tobs, max_tobs in results:
+        entry_dict = {}
+        entry_dict["date"] = date
+        entry_dict["min temperature"] = min_tobs
+        entry_dict["avg temperature"] = avg_tobs
+        entry_dict["max temperature"] = max_tobs
+        results_dict.append(entry_dict)
+    return jsonify(results_dict)
 
 if __name__ == "__main__":
     app.run(debug=True)
